@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <rect width="1200" height="720" fill="#f3f5f7"/>
+  <rect x="0" y="0" width="230" height="720" fill="#0a1b2a"/>
+  <rect x="230" y="0" width="970" height="72" fill="#f3f5f7" stroke="#e2e8ee"/>
+  <g transform="translate(20,22)">
+    <rect width="38" height="38" rx="11" fill="#1aa859"/>
+    <text x="19" y="24" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">WA</text>
+    <text x="48" y="16" fill="#f2f7f4" font-size="14" font-weight="700">Gateway</text>
+    <text x="48" y="32" fill="#8ba3b5" font-size="10" letter-spacing="1">WHATSAPP API</text>
+  </g>
+  <g font-size="13" font-weight="600">
+    <rect x="14" y="92" width="202" height="38" rx="10" fill="#148848"/>
+    <text x="48" y="116" fill="#fff">◫  Ringkasan</text>
+    <text x="48" y="156" fill="#a9bdcc">◎  Sesi</text>
+    <text x="48" y="196" fill="#a9bdcc">↗  Kirim pesan</text>
+    <text x="48" y="236" fill="#a9bdcc">☰  Riwayat</text>
+    <text x="48" y="276" fill="#a9bdcc">⚡  Webhook</text>
+    <text x="48" y="316" fill="#a9bdcc">⚿  API key</text>
+    <text x="48" y="356" fill="#a9bdcc">⚙  Akun</text>
+  </g>
+  <circle cx="36" cy="682" r="18" fill="#25d366" opacity="0.2"/>
+  <text x="36" y="687" text-anchor="middle" fill="#6ee7a1" font-size="13" font-weight="700">A</text>
+  <text x="62" y="678" fill="#edf6f1" font-size="12" font-weight="700">Admin Uji</text>
+  <text x="62" y="694" fill="#89a2b3" font-size="10">admin@ujicoba.local</text>
+
+  <text x="260" y="32" fill="#667685" font-size="11" font-weight="700" letter-spacing="2">TENANT</text>
+  <text x="260" y="56" fill="#14202b" font-size="22" font-weight="700">Uji Coba Lokal</text>
+  <rect x="1040" y="24" width="130" height="28" rx="14" fill="#e8f7ee" stroke="#c6ebd5"/>
+  <circle cx="1056" cy="38" r="4" fill="#1a9c55"/>
+  <text x="1068" y="42" fill="#107a40" font-size="12" font-weight="700">0/1 terhubung</text>
+
+  <g transform="translate(260,100)">
+    <g>
+      <rect width="210" height="110" rx="15" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="206" width="4" height="110" rx="2" fill="#cdd7e1"/>
+      <text x="18" y="30" fill="#667685" font-size="12" font-weight="700">Total sesi</text>
+      <text x="18" y="66" fill="#14202b" font-size="34" font-weight="700">1</text>
+      <text x="18" y="90" fill="#667685" font-size="11">nomor terdaftar</text>
+    </g>
+    <g transform="translate(230,0)">
+      <rect width="210" height="110" rx="15" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="206" width="4" height="110" rx="2" fill="#1a9c55"/>
+      <text x="18" y="30" fill="#667685" font-size="12" font-weight="700">Terhubung</text>
+      <text x="18" y="66" fill="#14202b" font-size="34" font-weight="700">0</text>
+      <text x="18" y="90" fill="#667685" font-size="11">siap mengirim</text>
+    </g>
+    <g transform="translate(460,0)">
+      <rect width="210" height="110" rx="15" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="206" width="4" height="110" rx="2" fill="#e5a52f"/>
+      <text x="18" y="30" fill="#667685" font-size="12" font-weight="700">Perlu perhatian</text>
+      <text x="18" y="66" fill="#14202b" font-size="34" font-weight="700">1</text>
+      <text x="18" y="90" fill="#667685" font-size="11">scan QR / reconnect</text>
+    </g>
+    <g transform="translate(690,0)">
+      <rect width="210" height="110" rx="15" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="206" width="4" height="110" rx="2" fill="#c23b3b"/>
+      <text x="18" y="30" fill="#667685" font-size="12" font-weight="700">Error</text>
+      <text x="18" y="66" fill="#14202b" font-size="34" font-weight="700">0</text>
+      <text x="18" y="90" fill="#667685" font-size="11">cek detail sesi</text>
+    </g>
+  </g>
+
+  <g transform="translate(260,240)">
+    <rect width="560" height="430" rx="18" fill="#fff" stroke="#e2e8ee"/>
+    <text x="24" y="38" fill="#14202b" font-size="17" font-weight="700">Sesi WhatsApp</text>
+    <text x="24" y="60" fill="#667685" font-size="12">Status seluruh nomor pada tenant ini.</text>
+    <rect x="24" y="86" width="512" height="60" rx="11" fill="#fbfcfd" stroke="#e2e8ee"/>
+    <text x="42" y="112" fill="#14202b" font-size="14" font-weight="700">Nomor Uji</text>
+    <text x="42" y="132" fill="#667685" font-size="12">QR siap dipindai</text>
+    <rect x="430" y="102" width="88" height="26" rx="13" fill="#fdf3dc"/>
+    <circle cx="446" cy="115" r="3" fill="#b97809"/>
+    <text x="456" y="119" fill="#b97809" font-size="11" font-weight="700">Scan QR</text>
+
+    <text x="24" y="190" fill="#14202b" font-size="16" font-weight="700">Mulai cepat</text>
+    <g font-size="13" fill="#14202b">
+      <rect x="24" y="210" width="27" height="27" rx="8" fill="#e8f7ee"/><text x="37" y="228" text-anchor="middle" fill="#107a40" font-weight="700">1</text><text x="62" y="222" font-weight="700">Buat sesi</text><text x="62" y="240" fill="#667685" font-size="12">Tambahkan nomor WhatsApp baru.</text>
+      <rect x="24" y="262" width="27" height="27" rx="8" fill="#e8f7ee"/><text x="37" y="280" text-anchor="middle" fill="#107a40" font-weight="700">2</text><text x="62" y="274" font-weight="700">Pindai QR</text><text x="62" y="292" fill="#667685" font-size="12">WhatsApp &gt; Perangkat tertaut &gt; Tautkan perangkat.</text>
+      <rect x="24" y="314" width="27" height="27" rx="8" fill="#e8f7ee"/><text x="37" y="332" text-anchor="middle" fill="#107a40" font-weight="700">3</text><text x="62" y="326" font-weight="700">Kirim pesan</text><text x="62" y="344" fill="#667685" font-size="12">Kirim teks, media, atau pesan interaktif.</text>
+      <rect x="24" y="366" width="27" height="27" rx="8" fill="#e8f7ee"/><text x="37" y="384" text-anchor="middle" fill="#107a40" font-weight="700">4</text><text x="62" y="378" font-weight="700">Integrasikan</text><text x="62" y="396" fill="#667685" font-size="12">Gunakan API key dan webhook untuk aplikasi Anda.</text>
+    </g>
+  </g>
+
+  <g transform="translate(840,240)">
+    <rect width="320" height="430" rx="18" fill="#fff" stroke="#e2e8ee"/>
+    <text x="24" y="38" fill="#14202b" font-size="17" font-weight="700">Laporan end-to-end</text>
+    <text x="24" y="60" fill="#667685" font-size="12">Cakupan operasional gateway.</text>
+    <g font-size="12" fill="#34495b">
+      <text x="24" y="100">• Login dashboard &amp; aktivasi API key</text>
+      <text x="24" y="128">• Multi-tenant &amp; multi-sesi WhatsApp</text>
+      <text x="24" y="156">• Koneksi QR / pairing code (Baileys)</text>
+      <text x="24" y="184">• Antrean outbound per sesi (BullMQ)</text>
+      <text x="24" y="212">• Teks, media, interaktif + fallback</text>
+      <text x="24" y="240">• Riwayat &amp; media tersimpan</text>
+      <text x="24" y="268">• Webhook HMAC + retry</text>
+      <text x="24" y="296">• API key &amp; CSRF cookie protection</text>
+      <text x="24" y="324">• SSRF guard &amp; retensi media</text>
+    </g>
+    <rect x="24" y="354" width="272" height="52" rx="10" fill="#fdf3dc" stroke="#f0ddb0"/>
+    <text x="40" y="376" fill="#8a5a05" font-size="12" font-weight="700">Sesi "Nomor Uji" perlu scan QR</text>
+    <text x="40" y="394" fill="#8a5a05" font-size="11">Buka menu Sesi untuk menautkan WhatsApp.</text>
+  </g>
+</svg>

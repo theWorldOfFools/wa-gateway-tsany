@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <defs>
+    <linearGradient id="intro" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1b2a"/>
+      <stop offset="0.62" stop-color="#102f45"/>
+      <stop offset="1" stop-color="#0c2233"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#25d366"/>
+      <stop offset="1" stop-color="#0f8a46"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#14202b" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="720" fill="#f3f5f7"/>
+  <rect x="0" y="0" width="700" height="720" fill="url(#intro)"/>
+  <circle cx="120" cy="140" r="180" fill="#25d366" opacity="0.08"/>
+  <circle cx="620" cy="560" r="220" fill="#2f6fb2" opacity="0.12"/>
+
+  <g transform="translate(64,54)">
+    <rect width="42" height="42" rx="13" fill="url(#brand)"/>
+    <text x="21" y="27" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">WA</text>
+    <text x="56" y="27" fill="#e9f3ee" font-size="17" font-weight="700">WhatsApp Gateway</text>
+  </g>
+
+  <text x="64" y="230" fill="#7dd3a2" font-size="12" font-weight="700" letter-spacing="2">DASHBOARD TENANT</text>
+  <text x="64" y="285" fill="#e9f3ee" font-size="48" font-weight="700">Kelola nomor WhatsApp</text>
+  <text x="64" y="340" fill="#e9f3ee" font-size="48" font-weight="700">Anda dari satu tempat.</text>
+  <text x="64" y="390" fill="#b8cbd8" font-size="18">Pindai QR, kirim pesan, pantau riwayat, atur webhook,</text>
+  <text x="64" y="418" fill="#b8cbd8" font-size="18">dan kelola API key tanpa perlu menyentuh server.</text>
+
+  <g fill="#d6e6df" font-size="15">
+    <circle cx="74" cy="468" r="10" fill="#25d366" opacity="0.25"/><text x="70" y="472" fill="#6ee7a1" font-size="11" font-weight="700">✓</text><text x="94" y="473">Multi-nomor dalam satu tenant</text>
+    <circle cx="74" cy="502" r="10" fill="#25d366" opacity="0.25"/><text x="70" y="506" fill="#6ee7a1" font-size="11" font-weight="700">✓</text><text x="94" y="507">Riwayat pesan dan media tersimpan</text>
+    <circle cx="74" cy="536" r="10" fill="#25d366" opacity="0.25"/><text x="70" y="540" fill="#6ee7a1" font-size="11" font-weight="700">✓</text><text x="94" y="541">Webhook bertanda tangan HMAC</text>
+    <circle cx="74" cy="570" r="10" fill="#25d366" opacity="0.25"/><text x="70" y="574" fill="#6ee7a1" font-size="11" font-weight="700">✓</text><text x="94" y="575">API key terpisah untuk integrasi</text>
+  </g>
+
+  <g transform="translate(740,90)" filter="url(#shadow)">
+    <rect width="400" height="540" rx="24" fill="#ffffff"/>
+    <rect x="30" y="30" width="340" height="40" rx="12" fill="#eef2f5"/>
+    <rect x="34" y="34" width="110" height="32" rx="9" fill="#ffffff"/>
+    <text x="89" y="55" text-anchor="middle" fill="#14202b" font-size="13" font-weight="700">Masuk</text>
+    <text x="203" y="55" text-anchor="middle" fill="#667685" font-size="13" font-weight="700">Daftar</text>
+    <text x="313" y="55" text-anchor="middle" fill="#667685" font-size="13" font-weight="700">Aktivasi</text>
+
+    <text x="30" y="118" fill="#14202b" font-size="24" font-weight="700">Selamat datang kembali</text>
+    <text x="30" y="144" fill="#667685" font-size="13">Masuk dengan email dan password dashboard Anda.</text>
+
+    <text x="30" y="190" fill="#34495b" font-size="12" font-weight="700">Email</text>
+    <rect x="30" y="200" width="340" height="42" rx="10" fill="#fbfcfd" stroke="#cdd7e1"/>
+    <text x="44" y="226" fill="#14202b" font-size="14">admin@ujicoba.local</text>
+
+    <text x="30" y="274" fill="#34495b" font-size="12" font-weight="700">Password</text>
+    <rect x="30" y="284" width="340" height="42" rx="10" fill="#fbfcfd" stroke="#cdd7e1"/>
+    <text x="44" y="310" fill="#a0adb8" font-size="18" letter-spacing="2">••••••••••••</text>
+
+    <rect x="30" y="356" width="340" height="46" rx="10" fill="url(#brand)"/>
+    <text x="200" y="385" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Masuk ke dashboard</text>
+
+    <text x="200" y="430" text-anchor="middle" fill="#667685" font-size="12">Belum punya akun? Daftar tenant baru atau</text>
+    <text x="200" y="448" text-anchor="middle" fill="#667685" font-size="12">aktifkan login dari API key yang sudah ada.</text>
+  </g>
+</svg>

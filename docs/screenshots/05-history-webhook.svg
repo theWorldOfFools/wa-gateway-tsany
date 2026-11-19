@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <rect width="1200" height="720" fill="#f3f5f7"/>
+  <rect x="0" y="0" width="230" height="720" fill="#0a1b2a"/>
+  <g transform="translate(20,22)">
+    <rect width="38" height="38" rx="11" fill="#1aa859"/>
+    <text x="19" y="24" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">WA</text>
+    <text x="48" y="16" fill="#f2f7f4" font-size="14" font-weight="700">Gateway</text>
+  </g>
+  <g font-size="13" font-weight="600" fill="#a9bdcc">
+    <text x="48" y="116">◫  Ringkasan</text>
+    <text x="48" y="156">◎  Sesi</text>
+    <text x="48" y="196">↗  Kirim pesan</text>
+    <rect x="14" y="212" width="202" height="38" rx="10" fill="#148848"/>
+    <text x="48" y="236" fill="#fff">☰  Riwayat</text>
+    <text x="48" y="276">⚡  Webhook</text>
+    <text x="48" y="316">⚿  API key</text>
+  </g>
+
+  <text x="260" y="34" fill="#667685" font-size="11" font-weight="700" letter-spacing="2">RIWAYAT &amp; INTEGRASI</text>
+  <text x="260" y="60" fill="#14202b" font-size="24" font-weight="700">Riwayat pesan &amp; Webhook</text>
+
+  <g transform="translate(260,96)">
+    <rect width="560" height="584" rx="18" fill="#fff" stroke="#e2e8ee"/>
+    <text x="24" y="36" fill="#14202b" font-size="17" font-weight="700">Riwayat pesan</text>
+    <text x="24" y="56" fill="#667685" font-size="12">Sesi: Nomor Uji · filter arah/jenis, muat lebih banyak.</text>
+
+    <g transform="translate(24,76)">
+      <rect width="512" height="110" rx="13" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="0" y="0" width="4" height="110" rx="2" fill="#1a9c55"/>
+      <rect x="18" y="14" width="52" height="22" rx="11" fill="#e8f7ee"/><text x="44" y="29" text-anchor="middle" fill="#107a40" font-size="11" font-weight="700">Keluar</text>
+      <rect x="76" y="14" width="56" height="22" rx="11" fill="#dff3ff"/><text x="104" y="29" text-anchor="middle" fill="#1f6f9c" font-size="11" font-weight="700">Terkirim</text>
+      <text x="140" y="29" fill="#667685" font-size="11">Teks · 20 Nov 2026, 00:41</text>
+      <text x="18" y="58" fill="#14202b" font-size="13">Halo dari gateway, pesanan Anda sedang diproses.</text>
+      <text x="18" y="86" fill="#667685" font-size="11">6281234567890@s.whatsapp.net</text>
+    </g>
+
+    <g transform="translate(24,198)">
+      <rect width="512" height="120" rx="13" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="0" y="0" width="4" height="120" rx="2" fill="#2f6fb2"/>
+      <rect x="18" y="14" width="48" height="22" rx="11" fill="#e9f2fb"/><text x="42" y="29" text-anchor="middle" fill="#2f6fb2" font-size="11" font-weight="700">Masuk</text>
+      <rect x="72" y="14" width="50" height="22" rx="11" fill="#e9f2fb"/><text x="97" y="29" text-anchor="middle" fill="#2f6fb2" font-size="11" font-weight="700">Masuk</text>
+      <text x="130" y="29" fill="#667685" font-size="11">Balasan interaktif · 20 Nov 2026, 00:42</text>
+      <text x="18" y="58" fill="#14202b" font-size="13">Sudah</text>
+      <text x="18" y="80" fill="#667685" font-size="11">Payload: { selectedId: "received", selectedText: "Sudah" }</text>
+      <text x="18" y="100" fill="#667685" font-size="11">6281234567890@s.whatsapp.net</text>
+    </g>
+
+    <g transform="translate(24,330)">
+      <rect width="512" height="110" rx="13" fill="#fff" stroke="#e2e8ee"/>
+      <rect x="0" y="0" width="4" height="110" rx="2" fill="#1a9c55"/>
+      <rect x="18" y="14" width="52" height="22" rx="11" fill="#e8f7ee"/><text x="44" y="29" text-anchor="middle" fill="#107a40" font-size="11" font-weight="700">Keluar</text>
+      <rect x="76" y="14" width="56" height="22" rx="11" fill="#fdf3dc"/><text x="104" y="29" text-anchor="middle" fill="#b97809" font-size="11" font-weight="700">Antrean</text>
+      <text x="140" y="29" fill="#667685" font-size="11">Gambar · 20 Nov 2026, 00:43</text>
+      <text x="18" y="58" fill="#14202b" font-size="13">Foto produk (media tersimpan)</text>
+      <text x="18" y="86" fill="#667685" font-size="11">Media: /v1/media/...</text>
+    </g>
+  </g>
+
+  <g transform="translate(840,96)">
+    <rect width="320" height="584" rx="18" fill="#fff" stroke="#e2e8ee"/>
+    <text x="24" y="36" fill="#14202b" font-size="17" font-weight="700">Webhook</text>
+    <text x="24" y="56" fill="#667685" font-size="12">Konfigurasi per sesi, HMAC-SHA256.</text>
+
+    <text x="24" y="94" fill="#34495b" font-size="12" font-weight="700">URL webhook</text>
+    <rect x="24" y="102" width="272" height="36" rx="10" fill="#fbfcfd" stroke="#cdd7e1"/>
+    <text x="36" y="125" fill="#14202b" font-size="11">https://app.example.com/webhook/wa</text>
+
+    <text x="24" y="164" fill="#34495b" font-size="12" font-weight="700">Event</text>
+    <g font-size="11" fill="#33495a">
+      <rect x="24" y="176" width="272" height="30" rx="8" fill="#fbfcfd" stroke="#e2e8ee"/><rect x="36" y="185" width="12" height="12" rx="3" fill="#1aa859"/><text x="56" y="195">session.connected</text>
+      <rect x="24" y="212" width="272" height="30" rx="8" fill="#fbfcfd" stroke="#e2e8ee"/><rect x="36" y="221" width="12" height="12" rx="3" fill="#1aa859"/><text x="56" y="231">message.received</text>
+      <rect x="24" y="248" width="272" height="30" rx="8" fill="#fbfcfd" stroke="#e2e8ee"/><rect x="36" y="257" width="12" height="12" rx="3" fill="#1aa859"/><text x="56" y="267">message.status</text>
+      <rect x="24" y="284" width="272" height="30" rx="8" fill="#fbfcfd" stroke="#e2e8ee"/><rect x="36" y="293" width="12" height="12" rx="3" fill="#fff" stroke="#cdd7e1"/><text x="56" y="303">session.disconnected</text>
+    </g>
+
+    <rect x="24" y="336" width="272" height="46" rx="10" fill="#fbfcfd" stroke="#e2e8ee"/>
+    <rect x="36" y="352" width="12" height="12" rx="3" fill="#1aa859"/>
+    <text x="56" y="356" fill="#14202b" font-size="11" font-weight="700">Fallback teks otomatis</text>
+    <text x="56" y="372" fill="#667685" font-size="10">Kirim teks jika interaktif gagal.</text>
+
+    <rect x="156" y="398" width="140" height="36" rx="10" fill="#1aa859"/>
+    <text x="226" y="421" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Simpan pengaturan</text>
+
+    <rect x="24" y="452" width="272" height="108" rx="12" fill="#e8f7ee" stroke="#c6ebd5"/>
+    <text x="40" y="478" fill="#107a40" font-size="12" font-weight="700">Secret webhook (sekali tampil)</text>
+    <rect x="40" y="490" width="240" height="30" rx="8" fill="#fff" stroke="#cdd7e1"/>
+    <text x="50" y="510" fill="#14202b" font-size="11">whsec_wT8m...rP9Q</text>
+    <text x="40" y="540" fill="#3f6451" font-size="10">Gunakan untuk verifikasi HMAC</text>
+    <text x="40" y="554" fill="#3f6451" font-size="10">x-wa-signature (timestamp.rawBody).</text>
+  </g>
+</svg>
