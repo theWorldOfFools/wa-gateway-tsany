@@ -18,12 +18,17 @@ import type { MessageStatus, WaSession } from '../domain.js';
 import { ApiError } from '../errors.js';
 import type { MediaStorage } from '../media/storage.js';
 import { SessionQueue } from '../queue/sessionQueue.js';
-import { getMessageInternal, updateMessageStatus, updateStatusByWaMessageId } from '../repos/messages.js';
+import {
+  findByWaMessageId,
+  getMessageInternal,
+  updateMessageStatus,
+  updateStatusByWaMessageId
+} from '../repos/messages.js';
 import { getSessionById, updateSessionState } from '../repos/sessions.js';
 import type { WebhookDispatcher } from '../webhooks/dispatcher.js';
 import { InboundHandler, toMessageDto } from './inbound.js';
 import { jidToPhone } from './jid.js';
-import { MessageSender } from './sender.js';
+import { buildSentMessageContent, MessageSender } from './sender.js';
 
 let cachedVersion: Promise<WAVersion | undefined> | null = null;
 
@@ -230,7 +235,24 @@ export class SessionRuntime {
         generateHighQualityLinkPreview: false,
         connectTimeoutMs: 60_000,
         keepAliveIntervalMs: 30_000,
-        getMessage: async () => undefined
+        getMessage: async (key) => {
+          if (!key.id) return undefined;
+          const record = await findByWaMessageId(
+            this.deps.db,
+            this.sessionId,
+            key.id
+          );
+          const content = record
+            ? buildSentMessageContent(record)
+            : undefined;
+          if (!content) {
+            sessionLogger.debug(
+              { msgId: key.id },
+              'No stored content available for retry request'
+            );
+          }
+          return content;
+        }
       });
 
       this.sock = sock;

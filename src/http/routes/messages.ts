@@ -452,6 +452,14 @@ export function registerMessageRoutes(app: FastifyInstance, deps: HttpDeps): voi
   app.post<{ Params: { id: string } }>(
     '/sessions/:id/messages/interactive',
     async (request, reply) => {
+      if (!deps.config.INTERACTIVE_MESSAGES_ENABLED) {
+        throw new ApiError(
+          410,
+          'interactive_messages_disabled',
+          'Interactive messages are temporarily disabled'
+        );
+      }
+
       const body = parseInput(InteractiveSchema, request.body);
       const session = await requireSession(
         deps,

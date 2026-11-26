@@ -34,3 +34,26 @@ describe('dashboard cookie configuration', () => {
     assert.equal(config.DASHBOARD_SESSION_TTL_DAYS, 14);
   });
 });
+
+describe('interactive message feature flag', () => {
+  it('is enabled by default', () => {
+    const config = loadConfig(baseEnv);
+    assert.equal(config.INTERACTIVE_MESSAGES_ENABLED, true);
+  });
+
+  it('can be disabled via the environment', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      INTERACTIVE_MESSAGES_ENABLED: 'false'
+    });
+    assert.equal(config.INTERACTIVE_MESSAGES_ENABLED, false);
+  });
+
+  it('treats 0 as disabled', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      INTERACTIVE_MESSAGES_ENABLED: '0'
+    });
+    assert.equal(config.INTERACTIVE_MESSAGES_ENABLED, false);
+  });
+});

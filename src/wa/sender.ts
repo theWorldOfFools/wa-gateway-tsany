@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import {
   generateWAMessageFromContent,
   isJidGroup,
+  proto,
   type BinaryNode,
   type WASocket
 } from '@whiskeysockets/baileys';
@@ -13,8 +14,10 @@ import { getMedia } from '../repos/media.js';
 import type { MediaStorage } from '../media/storage.js';
 import {
   buildFallbackText,
-  buildInteractiveMessage,
+  buildInteractiveEnvelope,
+  buildListMessage,
   buildMixedNativeFlowBizNode,
+  buildProductListBizNode,
   type InteractiveRequest
 } from './interactive.js';
 
@@ -157,9 +160,12 @@ export class MessageSender {
     }
 
     const interactive = payload.interactive as InteractiveRequest;
+    const isList = interactive.type === 'list';
     const waMessage = generateWAMessageFromContent(
       payload.to,
-      buildInteractiveMessage(interactive),
+      isList
+        ? buildListMessage(interactive)
+        : buildInteractiveEnvelope(interactive),
       { userJid }
     );
     if (!waMessage.key.id || !waMessage.message) {
@@ -167,9 +173,11 @@ export class MessageSender {
     }
 
     const botNode: BinaryNode = { tag: 'bot', attrs: { biz_bot: '1' } };
-    const additionalNodes: BinaryNode[] = isJidGroup(payload.to)
-      ? [buildMixedNativeFlowBizNode()]
-      : [botNode, buildMixedNativeFlowBizNode()];
+    const additionalNodes: BinaryNode[] = isList
+      ? [buildProductListBizNode()]
+      : isJidGroup(payload.to)
+        ? [buildMixedNativeFlowBizNode()]
+        : [buildMixedNativeFlowBizNode(), botNode];
 
     await sock.relayMessage(payload.to, waMessage.message, {
       messageId: waMessage.key.id,
@@ -194,6 +202,38 @@ export class MessageSender {
       }
     };
   }
+}
+
+/**
+ * Rebuilds the content of an outbound message so Baileys can answer
+ * decryption retry requests. Without this, recipients keep showing
+ * "Waiting for this message..." instead of the actual message.
+ */
+export function buildSentMessageContent(
+  message: MessageRecord
+): proto.Message | undefined {
+  if (message.direction !== 'out') return undefined;
+
+  const payload = message.payload as OutboundPayload | null;
+  if (!payload) return undefined;
+
+  if (message.kind === 'text') {
+    const text = payload.text ?? message.content ?? '';
+    return text ? proto.Message.fromObject({ conversation: text }) : undefined;
+  }
+
+  if (message.kind === 'interactive' && payload.interactive) {
+    const interactive = payload.interactive as InteractiveRequest;
+    return proto.Message.fromObject(
+      interactive.type === 'list'
+        ? buildListMessage(interactive)
+        : buildInteractiveEnvelope(interactive)
+    );
+  }
+
+  // Media content needs the original bytes/stream; it cannot be rebuilt
+  // from the stored record alone.
+  return undefined;
 }
 
 function requireMessageId(

@@ -42,7 +42,7 @@ Cakupan yang diimplementasikan:
 - **Multi-tenant & multi-nomor**: isolasi data per tenant (`tenants` → `api_keys`/`users` → `sessions` → `messages`/`media`).
 - **Akses**: login dashboard (email/password, cookie sesi) dan API key Bearer (`wag_...`) untuk integrasi.
 - **Koneksi WhatsApp**: sesi per nomor via Baileys, login QR atau pairing code, pemulihan sesi saat startup.
-- **Pengiriman**: teks, gambar, video (URL/upload), serta pesan interaktif tombol/daftar (native flow, best-effort) dengan fallback teks.
+- **Pengiriman**: teks, gambar, video (URL/upload), serta pesan interaktif tombol (native flow) dan daftar (`ListMessage` klasik) dengan fallback teks.
 - **Keandalan pengiriman**: antrean outbound per sesi (BullMQ/Redis), concurrency 1, rate limit per sesi, retry.
 - **Penerimaan & riwayat**: pesan masuk, balasan interaktif, dan status pesan disimpan di PostgreSQL.
 - **Webhook**: event per sesi, tanda tangan HMAC-SHA256 + timestamp, retry, secret dapat dirotasi.
@@ -116,7 +116,7 @@ Prinsip desain: satu sesi WhatsApp = satu socket + satu antrean outbound; data t
 - Pesan dicatat (status `queued`), idempotency key per sesi didukung, lalu dienqueue ke `wa-outbound-<sessionId>`.
 - Worker per sesi (concurrency 1, jeda antar kirim) memproses via Baileys; status diperbarui (`sending/sent/failed/delivered/read` sesuai event).
 - **Media:** dari URL publik (divalidasi + anti-SSRF, batas ukuran) atau multipart upload; disimpan dan direferensikan ke pesan.
-- **Interaktif:** native flow (tombol/daftar) best-effort; dapat fallback ke teks terformat bila gagal/klien tidak mendukung.
+- **Interaktif:** tombol native flow dibungkus `viewOnceMessage` + `messageContextInfo` agar sampai ke penerima; daftar memakai `ListMessage` klasik agar tampil di iOS/Web; dapat fallback ke teks terformat bila gagal.
 
 #### 4) Penerimaan pesan & riwayat (inbound)
 - Event Baileys diparse (`inbound`) → disimpan sebagai pesan masuk (termasuk balasan interaktif), media masuk yang didukung (gambar/video) disimpan.
@@ -155,7 +155,7 @@ Prinsip desain: satu sesi WhatsApp = satu socket + satu antrean outbound; data t
 - Protokol tidak resmi; risiko pemblokiran, tanpa SLA.
 - Riwayat hanya pesan yang lewat gateway saat berjalan (sync riwayat penuh nonaktif).
 - Media masuk yang disimpan: gambar/video; tipe lain dicatat sebagai `other` tanpa file.
-- Pesan interaktif bergantung native flow yang dapat berubah; fallback teks disediakan.
+- Pesan interaktif bergantung format native flow/`ListMessage` yang dapat berubah; fallback teks disediakan.
 - Rate limit per proses/sesi, bukan jaminan kebijakan WhatsApp.
 - Retry webhook in-process (best-effort); butuh penerima idempoten/rekonsiliasi untuk kebutuhan kritis.
 - Satu instance menangani banyak sesi (kapasitas tergantung VPS); belum ada scaling horizontal per sesi, billing, campaign massal, atau manajemen anggota grup.
@@ -255,6 +255,7 @@ MAX_SESSIONS_PER_TENANT=5
 MAX_SESSIONS_TOTAL=20
 MEDIA_MAX_BYTES=67108864
 MEDIA_RETENTION_DAYS=30
+INTERACTIVE_MESSAGES_ENABLED=false  # sementara nonaktif; set true + restart untuk mengaktifkan lagi
 ```
 
 Catatan: `dotenv` tidak menimpa environment variable yang sudah diekspor shell.

@@ -1900,11 +1900,30 @@ function bindEvents() {
   });
 }
 
+async function applyPublicConfig() {
+  try {
+    const config = await api('/v1/config');
+    if (config.interactiveMessagesEnabled !== false) return;
+
+    const option = $('#send-kind option[value="interactive"]');
+    if (!option) return;
+
+    option.disabled = true;
+    option.textContent = 'Interaktif (dinonaktifkan)';
+    if ($('#send-kind').value === 'interactive') {
+      $('#send-kind').value = 'text';
+    }
+  } catch {
+    // Jika config tidak tersedia, biarkan form apa adanya.
+  }
+}
+
 /* ---------- Boot ---------- */
 
 async function boot() {
   bindEvents();
   renderWebhookEventOptions();
+  await applyPublicConfig();
   syncSendForm();
 
   try {

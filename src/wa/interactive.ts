@@ -33,8 +33,6 @@ export type InteractiveRequest =
       sections: InteractiveListSection[];
     };
 
-export const INTERACTIVE_PRIVACY_MODE_TS_OFFSET = 77_980_457;
-
 export function buildNativeFlowButtons(input: InteractiveRequest): Array<{
   name: string;
   buttonParamsJson: string;
@@ -97,29 +95,76 @@ export function buildInteractiveMessage(input: InteractiveRequest): proto.IMessa
   return { interactiveMessage };
 }
 
-export function buildMixedNativeFlowBizNode(): BinaryNode {
-  const privacyModeTs = (
-    Math.floor(Date.now() / 1000) - INTERACTIVE_PRIVACY_MODE_TS_OFFSET
-  ).toString();
+/**
+ * Classic ListMessage (single select). Unlike the native flow
+ * `single_select` variant, this renders on iOS, Android and Web.
+ */
+export function buildListMessage(
+  input: Extract<InteractiveRequest, { type: 'list' }>
+): proto.IMessage {
+  return {
+    listMessage: proto.Message.ListMessage.create({
+      title: input.header || undefined,
+      description: input.text,
+      buttonText: input.buttonText,
+      listType: proto.Message.ListMessage.ListType.SINGLE_SELECT,
+      sections: input.sections.map((section) => ({
+        title: section.title ?? '',
+        rows: section.rows.map((row) => ({
+          title: row.title,
+          description: row.description ?? '',
+          rowId: row.id
+        }))
+      })),
+      footerText: input.footer || undefined
+    })
+  };
+}
+
+/**
+ * Wraps a native flow message the way WhatsApp clients expect it.
+ *
+ * A top-level `interactiveMessage` is accepted by the relay but silently
+ * dropped for recipients; wrapping it in `viewOnceMessage` with
+ * `messageContextInfo` makes the message deliverable and renderable.
+ */
+export function buildInteractiveEnvelope(
+  input: InteractiveRequest
+): proto.IMessage {
+  const { interactiveMessage } = buildInteractiveMessage(input);
 
   return {
+    viewOnceMessage: {
+      message: {
+        messageContextInfo: {
+          deviceListMetadata: {},
+          deviceListMetadataVersion: 2
+        },
+        interactiveMessage
+      }
+    }
+  };
+}
+
+export function buildMixedNativeFlowBizNode(): BinaryNode {
+  return {
     tag: 'biz',
-    attrs: {
-      actual_actors: '2',
-      host_storage: '2',
-      privacy_mode_ts: privacyModeTs
-    },
+    attrs: {},
     content: [
       {
         tag: 'interactive',
         attrs: { type: 'native_flow', v: '1' },
         content: [{ tag: 'native_flow', attrs: { v: '9', name: 'mixed' } }]
-      },
-      {
-        tag: 'quality_control',
-        attrs: { source_type: 'third_party' }
       }
     ]
+  };
+}
+
+export function buildProductListBizNode(): BinaryNode {
+  return {
+    tag: 'biz',
+    attrs: {},
+    content: [{ tag: 'list', attrs: { type: 'product_list', v: '2' } }]
   };
 }
 

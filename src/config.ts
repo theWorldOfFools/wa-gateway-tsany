@@ -26,6 +26,7 @@ const EnvSchema = z.object({
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
   AUTO_MIGRATE: booleanFromEnv(true),
+  INTERACTIVE_MESSAGES_ENABLED: booleanFromEnv(true),
   DASHBOARD_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(7),
   COOKIE_SECURE: z.string().optional(),
   MEDIA_MAX_BYTES: z.coerce.number().int().positive().default(64 * 1024 * 1024),

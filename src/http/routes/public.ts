@@ -15,6 +15,10 @@ const RegisterSchema = z.object({
 });
 
 export function registerPublicRoutes(app: FastifyInstance, deps: HttpDeps): void {
+  app.get('/config', async () => ({
+    interactiveMessagesEnabled: deps.config.INTERACTIVE_MESSAGES_ENABLED
+  }));
+
   app.post(
     '/tenants',
     {

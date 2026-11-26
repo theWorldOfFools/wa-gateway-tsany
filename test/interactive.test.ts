@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { proto } from '@whiskeysockets/baileys';
 import {
   buildFallbackText,
+  buildInteractiveEnvelope,
   buildInteractiveMessage,
+  buildListMessage,
   buildMixedNativeFlowBizNode,
   buildNativeFlowButtons,
+  buildProductListBizNode,
   type InteractiveRequest
 } from '../src/wa/interactive.js';
 
@@ -87,6 +91,43 @@ describe('buildInteractiveMessage', () => {
   });
 });
 
+describe('buildInteractiveEnvelope', () => {
+  it('wraps the interactive message in a deliverable view-once envelope', () => {
+    const envelope = buildInteractiveEnvelope(buttonsRequest);
+    const wrapped = envelope.viewOnceMessage?.message;
+
+    assert.equal(envelope.interactiveMessage ?? null, null);
+    assert.deepEqual(wrapped?.messageContextInfo?.deviceListMetadata, {});
+    assert.equal(wrapped?.messageContextInfo?.deviceListMetadataVersion, 2);
+    assert.equal(wrapped?.interactiveMessage?.body?.text, 'Choose an option');
+    assert.equal(wrapped?.interactiveMessage?.header?.title, 'Welcome');
+    assert.equal(wrapped?.interactiveMessage?.footer?.text, 'Thank you');
+    assert.equal(wrapped?.interactiveMessage?.nativeFlowMessage?.buttons?.length, 2);
+  });
+});
+
+describe('buildListMessage', () => {
+  it('builds a classic single-select list without a view-once envelope', () => {
+    const message = buildListMessage(listRequest);
+    const list = message.listMessage;
+
+    assert.equal(message.viewOnceMessage ?? null, null);
+    assert.equal(list?.title ?? null, null);
+    assert.equal(list?.description, 'Choose a product');
+    assert.equal(list?.buttonText, 'View products');
+    assert.equal(
+      list?.listType,
+      proto.Message.ListMessage.ListType.SINGLE_SELECT
+    );
+    assert.equal(list?.sections?.[0]?.title, 'Category A');
+    assert.equal(list?.sections?.[0]?.rows?.[0]?.rowId, 'a1');
+    assert.equal(
+      list?.sections?.[0]?.rows?.[0]?.description,
+      'First product'
+    );
+  });
+});
+
 describe('buildFallbackText', () => {
   it('renders numbered buttons', () => {
     const text = buildFallbackText(buttonsRequest);
@@ -109,17 +150,31 @@ describe('buildMixedNativeFlowBizNode', () => {
   it('builds the binary node required by native flow messages', () => {
     const node = buildMixedNativeFlowBizNode();
     assert.equal(node.tag, 'biz');
-    assert.equal(node.attrs.actual_actors, '2');
-    assert.equal(node.attrs.host_storage, '2');
-    assert.match(node.attrs.privacy_mode_ts ?? '', /^\d+$/);
+    assert.deepEqual(node.attrs, {});
 
     const content = node.content;
     assert.ok(Array.isArray(content));
     const interactive = content.find((child) => child.tag === 'interactive');
     assert.equal(interactive?.attrs.type, 'native_flow');
+    assert.equal(interactive?.attrs.v, '1');
     const nativeFlow = interactive?.content?.[0];
     assert.equal(nativeFlow?.tag, 'native_flow');
+    assert.equal(nativeFlow?.attrs.v, '9');
     assert.equal(nativeFlow?.attrs.name, 'mixed');
-    assert.ok(content.some((child) => child.tag === 'quality_control'));
+  });
+});
+
+describe('buildProductListBizNode', () => {
+  it('builds the binary node required by classic list messages', () => {
+    const node = buildProductListBizNode();
+    assert.equal(node.tag, 'biz');
+    assert.deepEqual(node.attrs, {});
+
+    const content = node.content;
+    assert.ok(Array.isArray(content));
+    const list = content[0];
+    assert.equal(list?.tag, 'list');
+    assert.equal(list?.attrs.type, 'product_list');
+    assert.equal(list?.attrs.v, '2');
   });
 });
