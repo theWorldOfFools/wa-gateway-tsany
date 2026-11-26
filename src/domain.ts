@@ -25,6 +25,11 @@ export type MessageKind =
   | 'interactive_reply'
   | 'other';
 
+export type AnalysisSource = 'internal' | 'external';
+export type AnalysisMode = 'internal' | 'external' | 'both';
+export type AnalysisAuthMode = 'signature' | 'bearer' | 'none';
+export type AnalysisStatus = 'pending' | 'completed' | 'failed';
+
 export interface Tenant {
   id: string;
   name: string;
@@ -114,6 +119,44 @@ export interface MessageRecord {
   error: string | null;
   idempotencyKey: string | null;
   meta: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AnalysisConfigRecord {
+  tenantId: string;
+  enabled: boolean;
+  mode: AnalysisMode;
+  endpoint: string | null;
+  authMode: AnalysisAuthMode;
+  secret: string | null;
+  redact: boolean;
+  maxChars: number;
+  timeoutMs: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AnalysisResultData {
+  label: 'positive' | 'negative' | 'neutral';
+  intent: string;
+  score: number;
+  keywords: string[];
+  summary: string;
+}
+
+export interface MessageAnalysisRecord {
+  id: string;
+  tenantId: string;
+  sessionId: string;
+  messageId: string;
+  source: AnalysisSource;
+  status: AnalysisStatus;
+  result: AnalysisResultData | null;
+  raw: unknown;
+  error: string | null;
+  durationMs: number | null;
+  analyzerVersion: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

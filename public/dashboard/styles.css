@@ -786,6 +786,10 @@ textarea::placeholder {
   background: var(--red);
 }
 
+.stat-card.accent-blue::after {
+  background: #3f7fd1;
+}
+
 .grid-two {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
@@ -852,6 +856,70 @@ textarea::placeholder {
 .mini-item small {
   color: var(--muted);
   font-size: 11.5px;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+.notice {
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border: 1px solid #e6d4a6;
+  border-radius: 12px;
+  background: #fdf6e3;
+  color: #6f551d;
+  font-size: 13px;
+}
+
+.bar-row {
+  display: grid;
+  gap: 5px;
+  padding: 7px 0;
+}
+
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+}
+
+.bar-label span:last-child {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-track {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.bar-fill {
+  min-width: 2px;
+  border-radius: 999px;
+  background: #3f7fd1;
+}
+
+.bar-fill.is-out {
+  background: var(--green);
+}
+
+.bar-fill.is-failed {
+  background: var(--red);
+}
+
+.bar-fill.is-neutral {
+  background: #9aa7b2;
+}
+
+.bar-fill.is-negative {
+  background: var(--red);
 }
 
 .empty-state {
@@ -985,6 +1053,26 @@ textarea::placeholder {
 .badge-out {
   background: var(--green-soft);
   color: var(--green-dark);
+}
+
+.badge-analysis-positive {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.badge-analysis-negative {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.badge-analysis-neutral {
+  background: #eef2f5;
+  color: #5e7182;
+}
+
+.badge-analysis-failed {
+  background: var(--amber-soft);
+  color: var(--amber);
 }
 
 /* ---------- Sessions ---------- */

@@ -10,6 +10,7 @@ import {
   type WAMessage,
   type WASocket
 } from '@whiskeysockets/baileys';
+import type { AnalysisQueue } from '../analysis/queue.js';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
 import type {
@@ -40,7 +41,8 @@ export class InboundHandler {
     private readonly config: Config,
     private readonly storage: MediaStorage,
     private readonly webhooks: WebhookDispatcher,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly analysisQueue: AnalysisQueue | null = null
   ) {}
 
   async handle(
@@ -133,6 +135,15 @@ export class InboundHandler {
       ...toMessageDto(record, this.config.publicUrl),
       media: media ? toMediaDto(media, this.config.publicUrl) : null
     });
+
+    if (this.analysisQueue) {
+      void this.analysisQueue.enqueue(record.id).catch((error) => {
+        this.logger.error(
+          { error, sessionId: session.id, messageId: record.id },
+          'Failed to enqueue message analysis'
+        );
+      });
+    }
   }
 
   private async storeIncomingMedia(

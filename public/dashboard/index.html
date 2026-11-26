@@ -238,6 +238,9 @@
           <button type="button" class="nav-item" data-view="history">
             <span class="nav-icon">☰</span> Riwayat
           </button>
+          <button type="button" class="nav-item" data-view="analytics">
+            <span class="nav-icon">◈</span> Analisa
+          </button>
           <button type="button" class="nav-item" data-view="webhook">
             <span class="nav-icon">⚡</span> Webhook
           </button>
@@ -652,6 +655,250 @@
               >
                 Muat lebih banyak
               </button>
+            </div>
+          </section>
+
+          <section id="view-analytics" class="view" hidden>
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Wawasan &amp; performa</p>
+                <h2>Analisa</h2>
+                <p>
+                  Hasil analisa pesan, statistik webhook, dan performa API dalam
+                  satu tempat.
+                </p>
+              </div>
+            </div>
+
+            <section class="panel compact">
+              <div class="filter-row">
+                <label class="field">
+                  <span>Sesi</span>
+                  <select id="analytics-session"></select>
+                </label>
+                <label class="field">
+                  <span>Rentang waktu</span>
+                  <select id="analytics-range">
+                    <option value="24h">24 jam terakhir</option>
+                    <option value="7d" selected>7 hari terakhir</option>
+                    <option value="30d">30 hari terakhir</option>
+                  </select>
+                </label>
+                <button
+                  id="analytics-refresh"
+                  type="button"
+                  class="btn btn-ghost"
+                >
+                  Muat ulang
+                </button>
+              </div>
+            </section>
+
+            <div id="analytics-disabled" class="notice" hidden></div>
+
+            <div class="stat-grid">
+              <article class="stat-card">
+                <span>Total pesan</span>
+                <strong id="analytics-total-messages">0</strong>
+                <small id="analytics-message-breakdown">—</small>
+              </article>
+              <article class="stat-card accent-green">
+                <span>Tingkat terkirim</span>
+                <strong id="analytics-delivery-rate">0%</strong>
+                <small>dari pesan keluar</small>
+              </article>
+              <article class="stat-card accent-blue">
+                <span>Analisa selesai</span>
+                <strong id="analytics-completed">0</strong>
+                <small id="analytics-analysis-breakdown">—</small>
+              </article>
+              <article class="stat-card accent-amber">
+                <span>Webhook sukses</span>
+                <strong id="analytics-webhook-rate">0%</strong>
+                <small id="analytics-webhook-breakdown">—</small>
+              </article>
+            </div>
+
+            <div class="grid-two">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Aktivitas pesan</h2>
+                    <p>Jumlah pesan masuk dan keluar per periode.</p>
+                  </div>
+                </div>
+                <div id="analytics-timeseries" class="mini-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Label analisa</h2>
+                    <p>Distribusi label dari hasil analisa.</p>
+                  </div>
+                </div>
+                <div id="analytics-labels" class="mini-list"></div>
+              </section>
+            </div>
+
+            <div class="grid-two">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Performa webhook</h2>
+                    <p>Pengiriman event per jenis dan rata-rata latensi.</p>
+                  </div>
+                </div>
+                <div id="analytics-webhook" class="mini-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Performa API</h2>
+                    <p>Rata-rata latensi dan laju error per endpoint.</p>
+                  </div>
+                </div>
+                <div id="analytics-api" class="mini-list"></div>
+              </section>
+            </div>
+
+            <div class="grid-two">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Konfigurasi analyzer</h2>
+                    <p>
+                      Analisa bawaan selalu tersedia. Analyzer eksternal
+                      bersifat opsional.
+                    </p>
+                  </div>
+                </div>
+                <form id="analysis-config-form" class="form-grid" novalidate>
+                  <label class="checkbox-row full">
+                    <input id="analysis-enabled" type="checkbox" />
+                    <span>
+                      <strong>Aktifkan analisa</strong>
+                      <small>Analisa otomatis untuk pesan masuk.</small>
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span>Mode</span>
+                    <select id="analysis-mode">
+                      <option value="internal">Bawaan (heuristik)</option>
+                      <option value="external">Eksternal saja</option>
+                      <option value="both">Bawaan + eksternal</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Endpoint analyzer eksternal</span>
+                    <input
+                      id="analysis-endpoint"
+                      type="url"
+                      placeholder="https://analyzer.example.com/v1/analyze"
+                      maxlength="2048"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Autentikasi</span>
+                    <select id="analysis-auth-mode">
+                      <option value="signature">HMAC signature</option>
+                      <option value="bearer">Bearer token</option>
+                      <option value="none">Tanpa autentikasi</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Secret</span>
+                    <input
+                      id="analysis-secret"
+                      type="text"
+                      placeholder="Isi untuk membuat/ubah secret"
+                      maxlength="512"
+                      autocomplete="off"
+                    />
+                    <small id="analysis-secret-hint" class="field-hint">—</small>
+                  </label>
+                  <label class="checkbox-row full">
+                    <input id="analysis-redact" type="checkbox" />
+                    <span>
+                      <strong>Sembunyikan nomor/JID</strong>
+                      <small>
+                        Nomor pengirim tidak dikirim ke analyzer eksternal.
+                      </small>
+                    </span>
+                  </label>
+                  <label class="field">
+                    <span>Batas teks (karakter)</span>
+                    <input id="analysis-max-chars" type="number" min="1" max="20000" />
+                  </label>
+                  <label class="field">
+                    <span>Timeout eksternal (ms)</span>
+                    <input id="analysis-timeout" type="number" min="500" max="60000" step="100" />
+                  </label>
+                  <label class="checkbox-row full">
+                    <input id="analysis-rotate" type="checkbox" />
+                    <span>
+                      <strong>Rotasi secret</strong>
+                      <small>Buat secret baru dan tampilkan sekali.</small>
+                    </span>
+                  </label>
+                  <div class="form-actions full">
+                    <button type="submit" class="btn btn-primary">
+                      Simpan konfigurasi
+                    </button>
+                  </div>
+                </form>
+                <div id="analysis-secret-box" class="secret-box" hidden></div>
+              </section>
+
+              <div class="stack">
+                <section class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <h2>Coba analisa teks</h2>
+                      <p>Uji analyzer tanpa menyimpan pesan.</p>
+                    </div>
+                  </div>
+                  <form id="analysis-text-form" class="form-grid" novalidate>
+                    <label class="field full">
+                      <span>Teks</span>
+                      <textarea
+                        id="analysis-text"
+                        rows="4"
+                        maxlength="20000"
+                        placeholder="Contoh: Terima kasih, pesanannya lambat dan mengecewakan."
+                      ></textarea>
+                    </label>
+                    <label class="field">
+                      <span>Sumber</span>
+                      <select id="analysis-text-source">
+                        <option value="internal">Bawaan</option>
+                        <option value="external">Eksternal</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Sesi (opsional)</span>
+                      <select id="analysis-text-session"></select>
+                    </label>
+                    <div class="form-actions full">
+                      <button type="submit" class="btn btn-primary">
+                        Analisa teks
+                      </button>
+                    </div>
+                  </form>
+                  <div id="analysis-text-result" class="result-box" hidden></div>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <h2>Analisa terbaru</h2>
+                      <p>Hasil analisa pesan pada rentang ini.</p>
+                    </div>
+                  </div>
+                  <div id="analysis-recent" class="mini-list"></div>
+                </section>
+              </div>
             </div>
           </section>
 

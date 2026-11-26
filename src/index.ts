@@ -5,6 +5,10 @@ import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createPool, pingDb } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
+import { AnalysisQueue } from './analysis/queue.js';
+import { runAnalysisRetention } from './analysis/retention.js';
+import { AnalysisService } from './analysis/service.js';
+import { ApiMetrics } from './analytics/metrics.js';
 import { createLogger } from './logger.js';
 import { runMediaRetention } from './media/retention.js';
 import { MediaStorage } from './media/storage.js';
@@ -28,6 +32,8 @@ async function main(): Promise<void> {
 
   let app: FastifyInstance | null = null;
   let manager: SessionManager | null = null;
+  let analysisQueue: AnalysisQueue | null = null;
+  const metrics = new ApiMetrics();
 
   try {
     await storage.init();
@@ -51,6 +57,23 @@ async function main(): Promise<void> {
       config,
       logger.child({ module: 'webhooks' })
     );
+    const analysisService = config.ANALYSIS_ENABLED
+      ? new AnalysisService(
+          db,
+          config,
+          logger.child({ module: 'analysis' }),
+          webhooks
+        )
+      : null;
+    analysisQueue = analysisService
+      ? new AnalysisQueue(
+          config.REDIS_URL,
+          config.ANALYSIS_QUEUE_CONCURRENCY,
+          analysisService,
+          logger.child({ module: 'analysis-queue' })
+        )
+      : null;
+
     const sender = new MessageSender(
       db,
       storage,
@@ -61,7 +84,8 @@ async function main(): Promise<void> {
       config,
       storage,
       webhooks,
-      logger.child({ module: 'inbound' })
+      logger.child({ module: 'inbound' }),
+      analysisQueue
     );
     manager = new SessionManager({
       config,
@@ -79,7 +103,10 @@ async function main(): Promise<void> {
       redis,
       logger,
       storage,
-      manager
+      manager,
+      analysis: analysisService ?? undefined,
+      analysisQueue: analysisQueue ?? undefined,
+      metrics
     });
     await app.listen({ host: config.HOST, port: config.PORT });
 
@@ -107,10 +134,24 @@ async function main(): Promise<void> {
       ).catch((error) => {
         logger.error({ err: error }, 'Media retention run failed');
       });
+      void runAnalysisRetention(
+        db,
+        logger.child({ module: 'retention' }),
+        config.ANALYSIS_RETENTION_DAYS
+      ).catch((error) => {
+        logger.error({ err: error }, 'Analysis retention run failed');
+      });
     };
     setTimeout(retention, 15_000).unref();
     const retentionTimer = setInterval(retention, RETENTION_INTERVAL_MS);
     retentionTimer.unref();
+
+    const metricsTimer = setInterval(() => {
+      void metrics.flush(db).catch((error) => {
+        logger.error({ err: error }, 'API metrics flush failed');
+      });
+    }, config.API_METRICS_FLUSH_MS);
+    metricsTimer.unref();
 
     let closing = false;
     const shutdown = async (signal: string): Promise<void> => {
@@ -125,6 +166,13 @@ async function main(): Promise<void> {
       forced.unref();
 
       clearInterval(retentionTimer);
+      clearInterval(metricsTimer);
+      await analysisQueue?.close().catch((error) => {
+        logger.warn({ err: error }, 'Error while closing the analysis queue');
+      });
+      await metrics.flush(db).catch((error) => {
+        logger.warn({ err: error }, 'Error while flushing API metrics');
+      });
       await app?.close().catch((error) => {
         logger.warn({ err: error }, 'Error while closing the HTTP server');
       });
@@ -149,6 +197,7 @@ async function main(): Promise<void> {
     });
   } catch (error) {
     logger.fatal({ err: error }, 'Failed to start the WhatsApp gateway');
+    await analysisQueue?.close().catch(() => undefined);
     await app?.close().catch(() => undefined);
     await manager?.shutdown().catch(() => undefined);
     await redis.quit().catch(() => undefined);

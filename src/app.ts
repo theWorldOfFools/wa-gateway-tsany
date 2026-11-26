@@ -12,6 +12,8 @@ import { pingDb } from './db/index.js';
 import { ApiError } from './errors.js';
 import { createAuthenticator } from './http/auth.js';
 import type { HttpDeps } from './http/deps.js';
+import { registerAnalysisRoutes } from './http/routes/analysis.js';
+import { registerAnalyticsRoutes } from './http/routes/analytics.js';
 import { registerAuthRoutes } from './http/routes/auth.js';
 import { registerGroupRoutes } from './http/routes/groups.js';
 import { registerMediaRoutes } from './http/routes/media.js';
@@ -137,6 +139,23 @@ export async function buildApp(deps: HttpDeps): Promise<FastifyInstance> {
     });
   }
 
+  app.addHook('onRequest', async (request) => {
+    request.metricsStart = Date.now();
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    if (!deps.metrics || !request.tenant || request.metricsStart === undefined) {
+      return;
+    }
+    deps.metrics.record(
+      request.tenant.id,
+      request.routeOptions.url ?? 'unknown',
+      request.method,
+      reply.statusCode,
+      Date.now() - request.metricsStart
+    );
+  });
+
   app.get('/health', async (_request, reply) => {
     const [database, redis] = await Promise.allSettled([
       pingDb(deps.db),
@@ -203,6 +222,8 @@ export async function buildApp(deps: HttpDeps): Promise<FastifyInstance> {
       registerTenantRoutes(scope, deps);
       registerSessionRoutes(scope, deps);
       registerMessageRoutes(scope, deps);
+      registerAnalysisRoutes(scope, deps);
+      registerAnalyticsRoutes(scope, deps);
       registerGroupRoutes(scope, deps);
       registerMediaRoutes(scope, deps);
     },

@@ -1,4 +1,10 @@
-import type { ApiKeyRecord, MessageRecord, WaSession } from '../domain.js';
+import type {
+  AnalysisConfigRecord,
+  ApiKeyRecord,
+  MessageAnalysisRecord,
+  MessageRecord,
+  WaSession
+} from '../domain.js';
 import { toMessageDto } from '../wa/inbound.js';
 
 export function apiKeyDto(key: ApiKeyRecord): Record<string, unknown> {
@@ -41,4 +47,41 @@ export function messageDto(
   publicUrl: string
 ): Record<string, unknown> {
   return toMessageDto(message, publicUrl);
+}
+
+export function analysisConfigDto(
+  config: AnalysisConfigRecord
+): Record<string, unknown> {
+  return {
+    enabled: config.enabled,
+    mode: config.mode,
+    endpoint: config.endpoint,
+    authMode: config.authMode,
+    redact: config.redact,
+    maxChars: config.maxChars,
+    timeoutMs: config.timeoutMs,
+    hasSecret: Boolean(config.secret),
+    secretHint: config.secret ? `••••${config.secret.slice(-4)}` : null,
+    createdAt: config.createdAt.toISOString(),
+    updatedAt: config.updatedAt.toISOString()
+  };
+}
+
+export function analysisDto(
+  record: MessageAnalysisRecord
+): Record<string, unknown> {
+  return {
+    id: record.id,
+    messageId: record.messageId,
+    sessionId: record.sessionId,
+    source: record.source,
+    status: record.status,
+    result: record.result,
+    raw: record.raw,
+    error: record.error,
+    durationMs: record.durationMs,
+    analyzerVersion: record.analyzerVersion,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
 }

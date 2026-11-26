@@ -8,5 +8,6 @@ declare module 'fastify' {
     authMethod?: AuthMethod;
     userId?: string;
     dashboardSessionId?: string;
+    metricsStart?: number;
   }
 }

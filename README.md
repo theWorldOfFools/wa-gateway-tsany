@@ -1,6 +1,6 @@
 # WhatsApp Gateway (wa-gateway-tsany)
 
-Gateway WhatsApp multi-tenant berbasis Node.js/TypeScript dengan **REST API** dan **dashboard web** untuk otomasi nomor pribadi (self-hosted). Satu proses dapat mengelola banyak tenant dan banyak sesi WhatsApp, lengkap dengan login dashboard, API key, koneksi QR/pairing, antrean pengiriman, riwayat pesan, media, dan webhook.
+Gateway WhatsApp multi-tenant berbasis Node.js/TypeScript dengan **REST API** dan **dashboard web** untuk otomasi nomor pribadi (self-hosted). Satu proses dapat mengelola banyak tenant dan banyak sesi WhatsApp, lengkap dengan login dashboard, API key, koneksi QR/pairing, antrean pengiriman, riwayat pesan, media, webhook, serta analisa isi pesan dan statistik operasional.
 
 > **Peringatan penting:** proyek ini memakai protokol WhatsApp Web yang **tidak resmi** (Baileys). Tidak ada jaminan kompatibilitas/SLA dan ada risiko nomor diblokir. Gunakan nomor khusus otomasi, bukan nomor utama, dan patuhi ketentuan WhatsApp yang berlaku.
 
@@ -26,6 +26,7 @@ Gateway WhatsApp multi-tenant berbasis Node.js/TypeScript dengan **REST API** da
 - [Contoh JavaScript](#contoh-javascript)
 - [Contoh PHP](#contoh-php)
 - [Webhook](#webhook)
+- [Analisa dan statistik](#analisa-dan-statistik)
 - [Media dan Retensi](#media-dan-retensi)
 - [Konfigurasi](#konfigurasi)
 - [Operasional](#operasional)
@@ -86,14 +87,15 @@ Prinsip desain: satu sesi WhatsApp = satu socket + satu antrean outbound; data t
 | Lapisan | Implementasi | Peran |
 |---|---|---|
 | HTTP & app | Fastify 5 (`src/app.ts`, `src/http/*`) | Routing `/v1/*`, auth, validasi, multipart, rate limit, CORS, static dashboard, health, error handling |
-| Dashboard | `public/dashboard/*` (HTML/CSS/JS statis) | UI login/register/aktivasi, ringkasan, sesi & QR, kirim pesan, riwayat, webhook, API key, akun |
+| Dashboard | `public/dashboard/*` (HTML/CSS/JS statis) | UI login/register/aktivasi, ringkasan, sesi & QR, kirim pesan, riwayat, analisa & statistik, webhook, API key, akun |
 | Auth dashboard | `src/http/routes/auth.ts`, `src/security/dashboardAuth.ts`, `src/repos/users.ts`, `src/repos/dashboardSessions.ts` | Register/login/logout/setup/password, `scrypt` password, token sesi hash di DB, cookie `HttpOnly` |
 | Auth API | `src/http/auth.ts`, `src/security/apiKey.ts`, `src/repos/apiKeys.ts` | Bearer API key (SHA-256 hash), resolusi tenant, sentuhan last-used |
 | WhatsApp runtime | `src/wa/sessionManager.ts`, `src/wa/sessionRuntime.ts`, `src/wa/sender.ts`, `src/wa/inbound.ts`, `src/wa/interactive.ts` | Lifecycle sesi Baileys, QR/pairing, kirim, parsing inbound/status, interaktif + fallback |
 | Antrean | `src/queue/sessionQueue.ts` (BullMQ) | Outbound per sesi, concurrency 1, jeda `WA_SEND_INTERVAL_MS`, retry/backoff |
 | Persistensi | PostgreSQL + `pg` (`src/db/*`, `migrations/*`, `src/repos/*`) | Tenant, user, dashboard session, API key, WA session, message, media |
 | Media | `src/media/storage.ts`, `src/media/retention.ts` | Simpan file (URL/upload), deteksi/validasi, path per tenant, hapus & retensi |
-| Webhook | `src/webhooks/dispatcher.ts`, `src/security/webhook.ts` | Dispatch event, HMAC signature, timestamp, retry bertahap |
+| Analisa | `src/analysis/*`, `src/analytics/*`, `src/repos/analysis.ts`, `src/repos/analytics.ts` | Analyzer heuristik + eksternal (opt-in), antrean `wa-analysis`, metrik API, retensi 30 hari |
+| Webhook | `src/webhooks/dispatcher.ts`, `src/security/webhook.ts` | Dispatch event (termasuk `analysis.*`), HMAC signature, timestamp, retry bertahap, pencatatan pengiriman |
 | Keamanan URL | `src/security/url.ts` | Validasi outbound URL & blokir alamat privat/reserved (SSRF) |
 | Operasional | `src/index.ts`, `src/config.ts`, `Dockerfile`, `docker-compose.yml` | Bootstrap, migrasi, restore sesi, retensi, graceful shutdown, health |
 
@@ -124,12 +126,19 @@ Prinsip desain: satu sesi WhatsApp = satu socket + satu antrean outbound; data t
 
 #### 5) Webhook
 - Per sesi: set `url`, `events`, `interactiveFallback`, dan `rotateSecret` (`PUT /v1/sessions/:id/webhook`).
-- Event: `session.qr`, `session.connected`, `session.disconnected`, `session.logged_out`, `message.received`, `message.status`.
+- Event: `session.qr`, `session.connected`, `session.disconnected`, `session.logged_out`, `message.received`, `message.status`, `analysis.completed`, `analysis.failed`.
 - Payload JSON berisi metadata + data; header `x-wa-event`, `x-wa-delivery`, `x-wa-timestamp`, `x-wa-signature` (`sha256=<hex>` HMAC dari `${timestamp}.${rawBody}` bila secret ada). Pengiriman dengan timeout & retry bertahap (best-effort).
+
+#### 6) Analisa pesan dan statistik
+- Pesan masuk otomatis dienqueue ke `wa-analysis` (tidak memblokir `message.received`); pesan tersimpan maupun teks bebas dapat dianalisa lewat API.
+- Analyzer bawaan `heuristic-v1` menghasilkan `label`, `intent`, `score`, `keywords`, dan `summary` secara deterministik.
+- Analyzer eksternal opsional: mode `external`/`both`, auth `signature` (HMAC), `bearer`, atau `none`, retry 3 kali, validasi skema respons. Nomor/JID **tidak dikirim** kecuali `redact=false`.
+- Hasil analisa memicu `analysis.completed`/`analysis.failed` via webhook bila event tersebut aktif pada sesi.
+- Statistik pesan, webhook, API, dan analisa tersedia di `/v1/analytics/*` dan dashboard; data analisa/metrik dihapus otomatis setelah `ANALYSIS_RETENTION_DAYS` (default 30 hari).
 
 ### Model data dan penyimpanan
 
-- **PostgreSQL (migrasi `001_init.sql`, `002_dashboard_auth.sql`)**: `tenants`, `api_keys`, `users`, `dashboard_sessions`, `sessions`, `messages`, `media` (+ indeks/constraint relevan).
+- **PostgreSQL (migrasi `001_init.sql`, `002_dashboard_auth.sql`, `003_analysis.sql`)**: `tenants`, `api_keys`, `users`, `dashboard_sessions`, `sessions`, `messages`, `media`, `analysis_configs`, `message_analysis`, `webhook_deliveries`, `api_metrics_minute` (+ indeks/constraint relevan).
 - **Disk (`DATA_DIR`)**: `auth/<sessionId>/` (kredensial WA), `media/<tenantId>/` (file), `tmp/` (upload sementara).
 - **Redis**: backend BullMQ untuk antrean dan koordinasi job.
 - **Retensi**: media dibersihkan sesuai `MEDIA_RETENTION_DAYS` (startup + periodik); hapus sesi membersihkan auth, media, dan data terkait.
@@ -145,7 +154,7 @@ Prinsip desain: satu sesi WhatsApp = satu socket + satu antrean outbound; data t
 
 ### Pengujian dan status
 
-- **Pengujian otomatis**: `npm run typecheck`, `npm run build`, `npm test` — **49 tes lulus** (normalisasi JID, interaktif+fallback, signature webhook, hashing API key, hashing password/token dashboard & config cookie, deteksi IP privat/SSRF & validasi URL).
+- **Pengujian otomatis**: `npm run typecheck`, `npm run build`, `npm test` — **72 tes lulus** (normalisasi JID, interaktif+fallback, signature webhook, hashing API key, hashing password/token dashboard & config cookie, deteksi IP privat/SSRF & validasi URL, analyzer internal, request/signature analyzer eksternal, rentang waktu analitik, agregasi metrik API).
 - **Smoke test yang telah dilakukan**: endpoint dashboard/aset/redirect/health, auth (register/login/setup/logout/me/password, case-insensitive, wrong password, duplikat, invalidasi sesi lain), akses data via cookie, penolakan mutasi tanpa CSRF, CRUD sesi via cookie, webhook/API key via cookie.
 - **Status operasional saat pelaporan**: server dev dapat dijalankan (`PORT=3100 npm run dev`), dashboard tersedia di `/dashboard/`.
 - **Belum diverifikasi manual penuh**: klik-through UI di browser nyata, scan QR ke WhatsApp nyata, pengiriman/penerimaan pesan nyata, dan rendering interaktif di perangkat (desktop tidak dijamin) — memerlukan perangkat/akun WhatsApp dan akses browser.
@@ -157,6 +166,7 @@ Prinsip desain: satu sesi WhatsApp = satu socket + satu antrean outbound; data t
 - Media masuk yang disimpan: gambar/video; tipe lain dicatat sebagai `other` tanpa file.
 - Pesan interaktif bergantung format native flow/`ListMessage` yang dapat berubah; fallback teks disediakan.
 - Rate limit per proses/sesi, bukan jaminan kebijakan WhatsApp.
+- Analisa memakai heuristik sederhana, bukan model NLP; hasilnya bersifat indikatif. Retensi analisa/metrik 30 hari dan metrik API disimpan per menit (agregat).
 - Retry webhook in-process (best-effort); butuh penerima idempoten/rekonsiliasi untuk kebutuhan kritis.
 - Satu instance menangani banyak sesi (kapasitas tergantung VPS); belum ada scaling horizontal per sesi, billing, campaign massal, atau manajemen anggota grup.
 - Dashboard berfokus pada operasional satu tenant.
@@ -256,6 +266,15 @@ MAX_SESSIONS_TOTAL=20
 MEDIA_MAX_BYTES=67108864
 MEDIA_RETENTION_DAYS=30
 INTERACTIVE_MESSAGES_ENABLED=false  # sementara nonaktif; set true + restart untuk mengaktifkan lagi
+
+# Analisa & statistik
+ANALYSIS_ENABLED=true
+ANALYSIS_RETENTION_DAYS=30
+ANALYSIS_QUEUE_CONCURRENCY=2
+ANALYSIS_MAX_TEXT_CHARS=4096
+ANALYSIS_EXTERNAL_TIMEOUT_MS=10000
+ALLOW_PRIVATE_ANALYSIS_ENDPOINTS=false
+API_METRICS_FLUSH_MS=60000
 ```
 
 Catatan: `dotenv` tidak menimpa environment variable yang sudah diekspor shell.
@@ -333,7 +352,7 @@ Dashboard statis tersedia di `/dashboard/` dan memakai API yang sama dengan inte
 - **Login:** email/password per tenant (bukan API key). Password di-hash `scrypt`, sesi disimpan sebagai hash token (`dashboard_sessions`), cookie `wa_dashboard` `HttpOnly` + `SameSite=Strict`.
 - **Keamanan cookie/CSRF:** `COOKIE_SECURE` otomatis `true` saat `NODE_ENV=production`; request mutasi via cookie wajib header `x-dashboard-request: 1`.
 - **Aktivasi tenant lama:** tab **Aktivasi** atau `POST /v1/auth/setup` dengan Bearer API key.
-- **Fitur:** ringkasan, CRUD sesi + QR/pairing/reconnect/logout, kirim teks/media/interaktif & pilih grup, riwayat + filter/paginasi, webhook (event + rotasi secret), manajemen API key, ubah password.
+- **Fitur:** ringkasan, CRUD sesi + QR/pairing/reconnect/logout, kirim teks/media/interaktif & pilih grup, riwayat + filter/paginasi (dengan badge analisa), **Analisa** (statistik, grafik, performa webhook/API, konfigurasi analyzer, uji teks), webhook (event + rotasi secret), manajemen API key, ubah password.
 - **Rate limit login:** 10 permintaan/menit/IP.
 
 ---
@@ -464,6 +483,63 @@ Interaktif daftar:
 `to` menerima nomor (`62...`), JID user (`...@s.whatsapp.net`), atau grup (`...@g.us`).
 
 Respons kirim: `202` `{ "message": { ...status queued... } }`. Idempotency key sama pada pesan yang sudah selesai mengembalikan `200` dengan pesan yang sudah ada.
+
+### Endpoint analisa dan statistik
+
+| Method | Path | Keterangan |
+| --- | --- | --- |
+| `GET` | `/v1/config` | Flag publik: `interactiveMessagesEnabled`, `analysisEnabled` |
+| `GET` | `/v1/analysis/config` | Konfigurasi analyzer tenant (secret tidak ditampilkan) |
+| `PUT` | `/v1/analysis/config` | Atur `enabled`, `mode`, `endpoint`, `authMode`, `secret`, `redact`, `maxChars`, `timeoutMs` |
+| `POST` | `/v1/analysis/text` | Analisa teks bebas (tanpa menyimpan pesan) |
+| `POST` | `/v1/analysis/messages/:id` | Queue analisa ulang pesan (`202`, `status: queued`) |
+| `GET` | `/v1/analysis/messages/:id` | Daftar hasil analisa suatu pesan |
+| `GET` | `/v1/analysis` | Daftar hasil (filter `from`, `to`, `sessionId`, `source`, `label`, `limit`) |
+| `GET` | `/v1/analytics/summary` | Ringkasan pesan + analisa |
+| `GET` | `/v1/analytics/timeseries` | Deret waktu pesan (`bucket=hour\|day`) |
+| `GET` | `/v1/analytics/top-chats` | Chat teratas (JID disaring per tenant) |
+| `GET` | `/v1/analytics/webhook` | Statistik pengiriman webhook |
+| `GET` | `/v1/analytics/api` | Statistik permintaan API per endpoint |
+
+Semua endpoint analitik menerima `from`/`to` (ISO 8601, maksimal 90 hari; default 7 hari) dan opsional `sessionId`. Contoh:
+
+```bash
+curl -X POST http://localhost:3000/v1/analysis/text \
+  -H "authorization: Bearer $API_KEY" \
+  -H 'content-type: application/json' \
+  -d '{"text":"Terima kasih, layanannya cepat","source":"internal"}'
+```
+
+```json
+{
+  "source": "internal",
+  "result": {
+    "label": "positive",
+    "intent": "thanks",
+    "score": 0.5,
+    "keywords": ["layanannya"],
+    "summary": "Terima kasih, layanannya cepat"
+  },
+  "version": "heuristic-v1"
+}
+```
+
+Konfigurasi analyzer eksternal:
+
+```json
+{
+  "enabled": true,
+  "mode": "both",
+  "endpoint": "https://analyzer.example.com/v1/analyze",
+  "authMode": "signature",
+  "secret": "ansec_...",
+  "redact": true,
+  "maxChars": 4096,
+  "timeoutMs": 10000
+}
+```
+
+Secret hanya dikembalikan sekali saat dibuat/dirotasi. Payload analyzer eksternal mengikuti bentuk event webhook (`analysis.request`) dengan header `x-wa-signature` bila memakai `signature`, dan respons wajib berisi `label` (`positive`/`negative`/`neutral`) serta opsional `intent`, `score`, `keywords`, `summary`, `analyzerVersion`.
 
 ### Webhook sesi
 
@@ -672,7 +748,7 @@ curl -X PUT http://localhost:3000/v1/sessions/$SESSION_ID/webhook \
   }'
 ```
 
-Event: `session.qr`, `session.connected`, `session.disconnected`, `session.logged_out`, `message.received`, `message.status`.
+Event: `session.qr`, `session.connected`, `session.disconnected`, `session.logged_out`, `message.received`, `message.status`, `analysis.completed`, `analysis.failed`.
 
 Header penting: `x-wa-event`, `x-wa-delivery`, `x-wa-timestamp`, `x-wa-signature` (`sha256=<hex>` jika secret ada). Signature = HMAC-SHA256 atas `${timestamp}.${rawBody}`.
 
@@ -708,6 +784,16 @@ Balas `2xx` dengan cepat; proses berat sebaiknya asynchronous.
 
 ---
 
+## Analisa dan statistik
+
+- **Analisa isi:** bawaan `heuristic-v1` (deterministik) dan/atau analyzer eksternal yang dikonfigurasi per tenant. Mode: `internal` (default), `external`, `both`.
+- **Trigger:** pesan masuk dianalisa otomatis via antrean BullMQ `wa-analysis`; pesan tersimpan dan teks bebas dapat diminta lewat REST API.
+- **Konsumsi hasil:** `GET`/`POST /v1/analysis/*`, event webhook `analysis.completed`/`analysis.failed`, dan menu **Analisa** di dashboard (kartu statistik, grafik aktivitas, distribusi label, performa webhook/API, konfigurasi analyzer, uji teks). Badge hasil analisa juga tampil di Riwayat pesan.
+- **Statistik:** `/v1/analytics/summary|timeseries|top-chats|webhook|api`, dengan filter tenant/sesi dan rentang waktu (default 7 hari, maksimal 90 hari). Metrik API dikumpulkan per menit lalu di-flush ke PostgreSQL.
+- **Privasi:** default `redact=true`, sehingga JID/nomor tidak dikirim ke analyzer eksternal. Endpoint eksternal divalidasi terhadap SSRF; alamat privat hanya diizinkan dengan `ALLOW_PRIVATE_ANALYSIS_ENDPOINTS=true`.
+- **Retensi:** hasil analisa, catatan pengiriman webhook, dan metrik API dihapus setelah `ANALYSIS_RETENTION_DAYS` (default 30 hari). Set `0` untuk menonaktifkan penghapusan otomatis.
+- **Penonaktifan:** `ANALYSIS_ENABLED=false` membuat endpoint analisa mengembalikan `410 analysis_disabled` dan menu Analisa dinonaktifkan di dashboard.
+
 ## Media dan Retensi
 
 - Media: `DATA_DIR/media/<tenantId>/`, metadata di PostgreSQL.
@@ -740,6 +826,14 @@ Balas `2xx` dengan cepat; proses berat sebaiknya asynchronous.
 | `COOKIE_SECURE` | otomatis | `true` jika `NODE_ENV=production` saat kosong |
 | `LOG_LEVEL` | `info` | Level log Pino |
 | `AUTO_MIGRATE` | `true` | Jalankan migrasi saat startup |
+| `INTERACTIVE_MESSAGES_ENABLED` | `true` | Aktifkan pesan interaktif; endpoint mengembalikan `410` saat `false` |
+| `ANALYSIS_ENABLED` | `true` | Aktifkan analisa isi pesan & metrik |
+| `ANALYSIS_RETENTION_DAYS` | `30` | Retensi hasil analisa/webhook/API (`0` = nonaktif) |
+| `ANALYSIS_QUEUE_CONCURRENCY` | `2` | Parallelisme worker antrean `wa-analysis` |
+| `ANALYSIS_MAX_TEXT_CHARS` | `4096` | Batas teks yang dianalisa |
+| `ANALYSIS_EXTERNAL_TIMEOUT_MS` | `10000` | Timeout analyzer eksternal (ms) |
+| `ALLOW_PRIVATE_ANALYSIS_ENDPOINTS` | `false` | Izinkan endpoint analyzer ke IP privat |
+| `API_METRICS_FLUSH_MS` | `60000` | Interval flush metrik API ke PostgreSQL |
 | `MEDIA_MAX_BYTES` | `67108864` | Batas ukuran media (byte) |
 | `MEDIA_RETENTION_DAYS` | `30` | Retensi media (`0` = nonaktif) |
 | `ALLOW_PRIVATE_MEDIA_URLS` | `false` | Izinkan URL media ke IP privat |

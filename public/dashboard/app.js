@@ -9,6 +9,7 @@ const VIEW_NAMES = new Set([
   'sessions',
   'send',
   'history',
+  'analytics',
   'webhook',
   'keys',
   'account'
@@ -48,7 +49,9 @@ const WEBHOOK_EVENTS = {
   'session.disconnected': 'Sesi terputus',
   'session.logged_out': 'Sesi logout',
   'message.received': 'Pesan masuk',
-  'message.status': 'Status pesan'
+  'message.status': 'Status pesan',
+  'analysis.completed': 'Analisa selesai',
+  'analysis.failed': 'Analisa gagal'
 };
 
 const DEFAULT_SECTIONS = JSON.stringify(
@@ -75,6 +78,8 @@ const state = {
   history: [],
   historyHasMore: false,
   historyLoading: false,
+  analysisEnabled: true,
+  analysisResults: new Map(),
   groups: [],
   filteredGroups: [],
   qrTimer: null,
@@ -401,6 +406,8 @@ function setView(viewName, options = {}) {
     syncSendForm();
   } else if (name === 'history') {
     loadHistory({ reset: true });
+  } else if (name === 'analytics') {
+    loadAnalytics();
   } else if (name === 'webhook') {
     loadWebhookConfig();
   } else if (name === 'keys') {
@@ -421,7 +428,9 @@ function selectedSession() {
 
 function setSelectedSession(sessionId) {
   state.selectedSessionId = sessionId || null;
-  $$('#send-session, #history-session, #webhook-session').forEach((select) => {
+  const sessionSelectors =
+    '#send-session, #history-session, #webhook-session, #analytics-session, #analysis-text-session';
+  $$(sessionSelectors).forEach((select) => {
     if (
       sessionId &&
       Array.from(select.options).some((option) => option.value === sessionId)
@@ -443,7 +452,9 @@ function renderSessionSelectors() {
         .join('')
     : '<option value="">Belum ada sesi</option>';
 
-  $$('#send-session, #history-session, #webhook-session').forEach((select) => {
+  const sessionSelectors =
+    '#send-session, #history-session, #webhook-session, #analytics-session, #analysis-text-session';
+  $$(sessionSelectors).forEach((select) => {
     const preferred = state.selectedSessionId;
     select.innerHTML = options;
     select.disabled = state.sessions.length === 0;
@@ -1150,7 +1161,25 @@ async function handleSendSubmit(event) {
 
 /* ---------- History ---------- */
 
-function renderMessage(message) {
+function analysisBadge(analysis) {
+  if (!analysis) return '';
+  if (analysis.status === 'failed') {
+    return '<span class="badge badge-analysis-failed">Analisa gagal</span>';
+  }
+  if (analysis.status !== 'completed' || !analysis.result) return '';
+
+  const label = analysis.result.label;
+  const labels = {
+    positive: 'Positif',
+    negative: 'Negatif',
+    neutral: 'Netral'
+  };
+  return `<span class="badge badge-analysis-${escapeHtml(
+    label
+  )}">Analisa: ${escapeHtml(labels[label] ?? label)}</span>`;
+}
+
+function renderMessage(message, analysis = null) {
   const direction = message.direction === 'in' ? 'in' : 'out';
   const status = messageStatusClass(message.status);
   const content = message.content
@@ -1191,6 +1220,7 @@ function renderMessage(message) {
       <span class="badge badge-${status}">${escapeHtml(
         MESSAGE_STATUS_LABELS[message.status] || message.status
       )}</span>
+      ${analysisBadge(analysis)}
       <span>${escapeHtml(kindLabel(message.kind))}</span>
       <time datetime="${escapeHtml(message.createdAt)}">${escapeHtml(
         formatDateTime(message.createdAt)
@@ -1251,6 +1281,21 @@ async function loadHistory(options = {}) {
     state.historyHasMore = Boolean(data.hasMore);
     $('#history-more').hidden = !state.historyHasMore;
 
+    const analysisParams = new URLSearchParams({
+      sessionId,
+      from: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+      to: new Date().toISOString(),
+      limit: '200'
+    });
+    const analysisData = await api(`/v1/analysis?${analysisParams}`).catch(() => ({
+      data: []
+    }));
+    state.analysisResults = new Map(
+      (Array.isArray(analysisData.data) ? analysisData.data : [])
+        .filter((item) => item.status === 'completed' || item.status === 'failed')
+        .map((item) => [item.messageId, item])
+    );
+
     if (!state.history.length) {
       $('#history-list').innerHTML = emptyState(
         'Belum ada pesan',
@@ -1258,7 +1303,9 @@ async function loadHistory(options = {}) {
       );
     } else {
       $('#history-list').innerHTML = state.history
-        .map((message) => renderMessage(message))
+        .map((message) =>
+          renderMessage(message, state.analysisResults.get(message.id))
+        )
         .join('');
     }
   } catch (error) {
@@ -1272,6 +1319,346 @@ async function loadHistory(options = {}) {
   } finally {
     state.historyLoading = false;
     setBusy(refresh, false);
+  }
+}
+
+/* ---------- Analysis ---------- */
+
+const ANALYSIS_LABELS = {
+  positive: 'Positif',
+  negative: 'Negatif',
+  neutral: 'Netral'
+};
+
+function analyticsQuery() {
+  const params = new URLSearchParams();
+  const sessionId = $('#analytics-session').value || '';
+  if (sessionId) params.set('sessionId', sessionId);
+
+  const days = { '24h': 1, '7d': 7, '30d': 30 }[
+    $('#analytics-range').value
+  ] ?? 7;
+  params.set('from', new Date(Date.now() - days * 86_400_000).toISOString());
+  params.set('to', new Date().toISOString());
+  return params.toString();
+}
+
+function renderBarList(element, rows, emptyTitle, emptyMessage) {
+  if (!rows.length) {
+    element.innerHTML = emptyState(emptyTitle, emptyMessage);
+    return;
+  }
+
+  const max = Math.max(
+    ...rows.map((row) => row.count ?? row.inbound + row.outbound + row.failed),
+    1
+  );
+  element.innerHTML = rows
+    .map((row) => {
+      const width = Math.max(
+        2,
+        Math.round(((row.count ?? 0) / max) * 100)
+      );
+      const label = escapeHtml(row.label);
+      const meta = escapeHtml(row.meta ?? String(row.count ?? 0));
+      return `<div class="bar-row">
+        <div class="bar-label"><span>${label}</span><span>${meta}</span></div>
+        <div class="bar-track"><div class="bar-fill ${escapeHtml(
+          row.className ?? ''
+        )}" style="width:${width}%"></div></div>
+      </div>`;
+    })
+    .join('');
+}
+
+function renderTimeseries(element, rows) {
+  if (!rows.length) {
+    element.innerHTML = emptyState(
+      'Belum ada aktivitas',
+      'Pesan pada rentang ini akan tampil di grafik.'
+    );
+    return;
+  }
+
+  const recent = rows.slice(-12);
+  const max = Math.max(
+    ...recent.map((row) => row.inbound + row.outbound + row.failed),
+    1
+  );
+  element.innerHTML = recent
+    .map((row) => {
+      const width = (value) => Math.max(2, Math.round((value / max) * 100));
+      const label = formatDateTime(row.bucket);
+      return `<div class="bar-row">
+        <div class="bar-label">
+          <span>${escapeHtml(label)}</span>
+          <span>${row.inbound} masuk · ${row.outbound} keluar${
+            row.failed ? ` · ${row.failed} gagal` : ''
+          }</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${width(row.inbound)}%"></div>
+          <div class="bar-fill is-out" style="width:${width(row.outbound)}%"></div>
+          <div class="bar-fill is-failed" style="width:${width(row.failed)}%"></div>
+        </div>
+      </div>`;
+    })
+    .join('');
+}
+
+function renderAnalysisConfig(config) {
+  if (!config) return;
+  $('#analysis-enabled').checked = Boolean(config.enabled);
+  $('#analysis-mode').value = config.mode || 'internal';
+  $('#analysis-endpoint').value = config.endpoint || '';
+  $('#analysis-auth-mode').value = config.authMode || 'signature';
+  $('#analysis-redact').checked = Boolean(config.redact);
+  $('#analysis-max-chars').value = String(config.maxChars ?? 4096);
+  $('#analysis-timeout').value = String(config.timeoutMs ?? 10000);
+  $('#analysis-secret').value = '';
+  $('#analysis-rotate').checked = false;
+  $('#analysis-secret-hint').textContent =
+    config.secretHint || 'Belum ada secret';
+}
+
+function renderAnalysisTextResult(data, error = null) {
+  const box = $('#analysis-text-result');
+  box.hidden = false;
+  box.classList.toggle('is-error', Boolean(error));
+
+  if (error) {
+    box.innerHTML = `<h3>Analisa gagal</h3><p>${escapeHtml(error)}</p>`;
+    return;
+  }
+
+  const result = data.result ?? {};
+  const label = ANALYSIS_LABELS[result.label] ?? result.label ?? '—';
+  const keywords = Array.isArray(result.keywords) && result.keywords.length
+    ? result.keywords.map((word) => escapeHtml(word)).join(', ')
+    : '—';
+  box.innerHTML = `<h3>${escapeHtml(label)} · ${escapeHtml(
+    result.intent || 'other'
+  )}</h3>
+    <p>Skor: ${escapeHtml(String(result.score ?? 0))} · Sumber: ${escapeHtml(
+      data.source
+    )} · Versi: ${escapeHtml(data.version || '—')}</p>
+    <p>Kata kunci: ${keywords}</p>
+    <p>Ringkasan: ${escapeHtml(result.summary || '—')}</p>`;
+}
+
+function renderRecentAnalysis(rows) {
+  const element = $('#analysis-recent');
+  if (!rows.length) {
+    element.innerHTML = emptyState(
+      'Belum ada analisa',
+      'Hasil analisa pesan akan tampil di sini.'
+    );
+    return;
+  }
+
+  element.innerHTML = rows
+    .slice(0, 20)
+    .map((item) => {
+      const label = ANALYSIS_LABELS[item.result?.label] ?? 'Gagal';
+      const className = item.status === 'completed'
+        ? `badge-analysis-${escapeHtml(item.result?.label ?? 'neutral')}`
+        : 'badge-analysis-failed';
+      return `<div class="mini-item">
+        <div>
+          <strong><span class="badge ${className}">${escapeHtml(
+            label
+          )}</span> ${escapeHtml(item.source)}</strong>
+          <small>${escapeHtml(
+            item.result?.summary || item.error || 'Tanpa ringkasan'
+          )}</small>
+        </div>
+        <small>${escapeHtml(formatDateTime(item.createdAt))}</small>
+      </div>`;
+    })
+    .join('');
+}
+
+async function loadAnalytics() {
+  const notice = $('#analytics-disabled');
+  if (!state.analysisEnabled) {
+    notice.textContent =
+      'Analisa dinonaktifkan pada konfigurasi server. Aktifkan ANALYSIS_ENABLED untuk memakai fitur ini.';
+    notice.hidden = false;
+    return;
+  }
+
+  const query = analyticsQuery();
+  const [summary, series, webhook, apiStats, configResult, recent] =
+    await Promise.all([
+      api(`/v1/analytics/summary?${query}`).catch(() => null),
+      api(`/v1/analytics/timeseries?${query}`).catch(() => ({ data: [] })),
+      api(`/v1/analytics/webhook?${query}`).catch(() => null),
+      api(`/v1/analytics/api?${query}`).catch(() => null),
+      api('/v1/analysis/config').catch((error) => {
+        if (error.status === 410) {
+          state.analysisEnabled = false;
+          return null;
+        }
+        return null;
+      }),
+      api(`/v1/analysis?${query}&limit=20`).catch(() => ({ data: [] }))
+    ]);
+
+  if (!state.analysisEnabled || !configResult) {
+    notice.textContent =
+      'Analisa tidak tersedia untuk tenant ini. Periksa konfigurasi server.';
+    notice.hidden = false;
+    return;
+  }
+  notice.hidden = true;
+
+  const stats = summary?.analysis ?? {};
+  $('#analytics-total-messages').textContent = String(summary?.total ?? 0);
+  $('#analytics-message-breakdown').textContent = summary
+    ? `${summary.inbound} masuk · ${summary.outbound} keluar`
+    : '—';
+  $('#analytics-delivery-rate').textContent = `${Math.round(
+    (summary?.deliveryRate ?? 0) * 100
+  )}%`;
+  $('#analytics-completed').textContent = String(stats.completed ?? 0);
+  $('#analytics-analysis-breakdown').textContent = stats.total
+    ? `${stats.total} total · ${stats.failed ?? 0} gagal`
+    : '—';
+  $('#analytics-webhook-rate').textContent = `${Math.round(
+    (webhook?.successRate ?? 0) * 100
+  )}%`;
+  $('#analytics-webhook-breakdown').textContent = webhook?.attempts
+    ? `${webhook.successful}/${webhook.attempts} sukses · ${webhook.avgDurationMs} ms`
+    : 'Belum ada pengiriman';
+
+  renderTimeseries(
+    $('#analytics-timeseries'),
+    Array.isArray(series?.data) ? series.data : []
+  );
+  renderBarList(
+    $('#analytics-labels'),
+    (stats.byLabel ?? []).map((item) => ({
+      label: ANALYSIS_LABELS[item.label] ?? item.label,
+      count: item.count,
+      meta: `${item.count} hasil`,
+      className:
+        item.label === 'positive'
+          ? ''
+          : `is-${escapeHtml(item.label)}`
+    })),
+    'Belum ada label',
+    'Jalankan analisa untuk melihat distribusi label.'
+  );
+  renderBarList(
+    $('#analytics-webhook'),
+    (webhook?.byEvent ?? []).map((item) => ({
+      label: WEBHOOK_EVENTS[item.event] ?? item.event,
+      count: item.attempts,
+      meta: `${item.successful}/${item.attempts} sukses`
+    })),
+    'Belum ada webhook',
+    'Event webhook yang terkirim akan tampil di sini.'
+  );
+  renderBarList(
+    $('#analytics-api'),
+    (apiStats?.byRoute ?? []).map((item) => ({
+      label: `${item.method} ${item.route}`,
+      count: item.requests,
+      meta: `${item.requests} req · ${item.avgDurationMs} ms${
+        item.errors ? ` · ${item.errors} error` : ''
+      }`
+    })),
+    'Belum ada metrik API',
+    'Permintaan API akan dicatat setiap menit.'
+  );
+
+  renderAnalysisConfig(configResult.config);
+  renderRecentAnalysis(Array.isArray(recent?.data) ? recent.data : []);
+}
+
+async function handleAnalysisConfigSubmit(event) {
+  event.preventDefault();
+  const submit = $('#analysis-config-form button[type="submit"]');
+  const endpoint = $('#analysis-endpoint').value.trim() || null;
+  const mode = $('#analysis-mode').value;
+  const secret = $('#analysis-secret').value.trim();
+  const rotateSecret = $('#analysis-rotate').checked;
+
+  if (mode !== 'internal' && !endpoint) {
+    toast('Endpoint analyzer wajib diisi untuk mode eksternal', 'error');
+    return;
+  }
+
+  const body = {
+    enabled: $('#analysis-enabled').checked,
+    mode,
+    endpoint,
+    authMode: $('#analysis-auth-mode').value,
+    redact: $('#analysis-redact').checked,
+    maxChars: Number($('#analysis-max-chars').value),
+    timeoutMs: Number($('#analysis-timeout').value)
+  };
+  if (secret) body.secret = secret;
+  if (rotateSecret) body.rotateSecret = true;
+
+  setBusy(submit, true, 'Menyimpan...');
+  try {
+    const data = await api('/v1/analysis/config', {
+      method: 'PUT',
+      body: JSON.stringify(body)
+    });
+    $('#analysis-secret').value = '';
+    $('#analysis-rotate').checked = false;
+    renderAnalysisConfig(data.config);
+
+    if (data.secret) {
+      const box = $('#analysis-secret-box');
+      box.hidden = false;
+      box.innerHTML = `<h3>Simpan secret analyzer sekarang</h3>
+        <p>${escapeHtml(data.warning || 'Secret hanya ditampilkan sekali.')}</p>
+        <div class="secret-line"><code>${escapeHtml(
+          data.secret
+        )}</code><button type="button" class="btn btn-ghost btn-sm" data-copy="${escapeHtml(
+          data.secret
+        )}">Salin</button></div>`;
+    }
+    toast('Konfigurasi analisa disimpan', 'success');
+    await loadAnalytics();
+  } catch (error) {
+    toast(formatError(error), 'error');
+  } finally {
+    setBusy(submit, false);
+  }
+}
+
+async function handleAnalysisTextSubmit(event) {
+  event.preventDefault();
+  const text = $('#analysis-text').value.trim();
+  if (!text) {
+    toast('Teks wajib diisi', 'error');
+    return;
+  }
+
+  const submit = $('#analysis-text-form button[type="submit"]');
+  const body = {
+    text,
+    source: $('#analysis-text-source').value
+  };
+  const sessionId = $('#analysis-text-session').value;
+  if (sessionId) body.sessionId = sessionId;
+
+  setBusy(submit, true, 'Menganalisa...');
+  try {
+    const data = await api('/v1/analysis/text', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    renderAnalysisTextResult(data);
+  } catch (error) {
+    renderAnalysisTextResult(null, formatError(error));
+    toast(formatError(error), 'error');
+  } finally {
+    setBusy(submit, false);
   }
 }
 
@@ -1701,6 +2088,7 @@ function bindEvents() {
     try {
       await loadSessions();
       if (state.view === 'history') await loadHistory({ reset: true });
+      if (state.view === 'analytics') await loadAnalytics();
       if (state.view === 'webhook') await loadWebhookConfig();
       if (state.view === 'keys') await loadApiKeys();
       toast('Data dimuat ulang', 'success');
@@ -1861,6 +2249,15 @@ function bindEvents() {
     loadHistory({ reset: false })
   );
 
+  $('#analytics-session').addEventListener('change', (event) => {
+    setSelectedSession(event.target.value);
+    void loadAnalytics();
+  });
+  $('#analytics-range').addEventListener('change', () => loadAnalytics());
+  $('#analytics-refresh').addEventListener('click', () => loadAnalytics());
+  $('#analysis-config-form').addEventListener('submit', handleAnalysisConfigSubmit);
+  $('#analysis-text-form').addEventListener('submit', handleAnalysisTextSubmit);
+
   $('#webhook-session').addEventListener('change', (event) => {
     setSelectedSession(event.target.value);
     void loadWebhookConfig();
@@ -1903,15 +2300,25 @@ function bindEvents() {
 async function applyPublicConfig() {
   try {
     const config = await api('/v1/config');
-    if (config.interactiveMessagesEnabled !== false) return;
 
-    const option = $('#send-kind option[value="interactive"]');
-    if (!option) return;
+    if (config.interactiveMessagesEnabled === false) {
+      const option = $('#send-kind option[value="interactive"]');
+      if (option) {
+        option.disabled = true;
+        option.textContent = 'Interaktif (dinonaktifkan)';
+        if ($('#send-kind').value === 'interactive') {
+          $('#send-kind').value = 'text';
+        }
+      }
+    }
 
-    option.disabled = true;
-    option.textContent = 'Interaktif (dinonaktifkan)';
-    if ($('#send-kind').value === 'interactive') {
-      $('#send-kind').value = 'text';
+    if (config.analysisEnabled === false) {
+      state.analysisEnabled = false;
+      const nav = $('.nav-item[data-view="analytics"]');
+      if (nav) {
+        nav.disabled = true;
+        nav.title = 'Analisa dinonaktifkan pada konfigurasi server';
+      }
     }
   } catch {
     // Jika config tidak tersedia, biarkan form apa adanya.
